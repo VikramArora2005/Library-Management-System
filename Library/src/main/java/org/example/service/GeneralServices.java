@@ -1,62 +1,77 @@
 package org.example.service;
 import java.sql.*;
+
+import org.example.constants.AppErrorCode;
+import org.example.constants.AppSuccessCode;
 import org.example.model.*;
 import org.example.util.DButil;
-
+import org.example.exception.AppException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 public class GeneralServices {
+    AppErrorCode error =  new AppErrorCode();
+    AppSuccessCode success = new AppSuccessCode();
+
+
     public List<Book> viewAllBooks(){
         List<Book> allBooks = new ArrayList<>();
         String sql = "SELECT * FROM books";
+        try {
+            try (Connection conn = DButil.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql);
+                 ResultSet rs = stmt.executeQuery()) {
 
-        try (Connection conn = DButil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String title = rs.getString("title");
+                    String author = rs.getString("author");
+                    int quantity = rs.getInt("quantity");
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String title = rs.getString("title");
-                String author = rs.getString("author");
-                int quantity = rs.getInt("quantity");
+                    Book book = new Book(id, title, author, quantity);
+                    allBooks.add(book);
+                }
 
-                Book book = new Book(id, title, author, quantity);
-                allBooks.add(book);
+            } catch (SQLException e) {
+                throw new AppException(error.getBooksLoadingErrorCode(), error.getBooksLoadingErrorMsg());
             }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
         }
 
         return allBooks;
     }
+
     public Member getMemberDetails(int id){
         Member m = null;
         String sql = "SELECT * FROM members WHERE id = ?";
 
-        try (Connection conn = DButil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try{
+            try (Connection conn = DButil.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1,id);
-            ResultSet rs = stmt.executeQuery();
+                stmt.setInt(1,id);
+                ResultSet rs = stmt.executeQuery();
 
-            if (rs.next()) {
-                int memberId = rs.getInt("id");
-                String memberName = rs.getString("name");
-                String contact = rs.getString("contact");
+                if (rs.next()) {
+                    int memberId = rs.getInt("id");
+                    String memberName = rs.getString("name");
+                    String contact = rs.getString("contact");
 
-                List<Book> memberBooks = viewMemberBooks(memberId);
-                ArrayList<Integer> memberBookIds = new ArrayList<>();
-                for (Book book : memberBooks) {
-                    memberBookIds.add(book.getId());
+                    List<Book> memberBooks = viewMemberBooks(memberId);
+                    ArrayList<Integer> memberBookIds = new ArrayList<>();
+                    for (Book book : memberBooks) {
+                        memberBookIds.add(book.getId());
+                    }
+
+                    m = new Member(memberId,memberName,contact,memberBookIds);
                 }
 
-                m = new Member(memberId,memberName,contact,memberBookIds);
+            } catch (SQLException e) {
+                throw new AppException(error.getMemberDetailsErrorCode(),error.getMemberDetailsErrorMsg());
             }
-
-        } catch (SQLException e) {
-            System.out.println("cant recieve member details" + e.getMessage());
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
         }
 
         return m;
@@ -66,23 +81,27 @@ public class GeneralServices {
         Book book = null;
         String sql = "SELECT * FROM books WHERE id = ?";
 
-        try (Connection conn = DButil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try{
+            try (Connection conn = DButil.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1, id);
-            ResultSet rs = stmt.executeQuery();
+                stmt.setInt(1, id);
+                ResultSet rs = stmt.executeQuery();
 
-            if (rs.next()) {
-                int bookId = rs.getInt("id");
-                String title = rs.getString("title");
-                String author = rs.getString("author");
-                int quantity = rs.getInt("quantity");
+                if (rs.next()) {
+                    int bookId = rs.getInt("id");
+                    String title = rs.getString("title");
+                    String author = rs.getString("author");
+                    int quantity = rs.getInt("quantity");
 
-                book = new Book(bookId, title, author, quantity);
+                    book = new Book(bookId, title, author, quantity);
+                }
+
+            } catch (SQLException e) {
+                throw new AppException(error.getBooksByIdErrorCode(),error.getBooksByIdErrorMsg());   //EXCEPTION
             }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
         }
 
         return book; // returns null if no book found
@@ -92,27 +111,31 @@ public class GeneralServices {
         List<Member> allMembers = new ArrayList<>();
         String sql = "SELECT * FROM members";
 
-        try (Connection conn = DButil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+        try{
+            try (Connection conn = DButil.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql);
+                 ResultSet rs = stmt.executeQuery()) {
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String name = rs.getString("name");
-                String contact = rs.getString("contact");
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String name = rs.getString("name");
+                    String contact = rs.getString("contact");
 
 
-                List<Book> memberBooks = viewMemberBooks(id);
-                ArrayList<Integer> memberBookIds = new ArrayList<Integer>();
-                for (Book book : memberBooks) {
-                    memberBookIds.add(book.getId());
+                    List<Book> memberBooks = viewMemberBooks(id);
+                    ArrayList<Integer> memberBookIds = new ArrayList<Integer>();
+                    for (Book book : memberBooks) {
+                        memberBookIds.add(book.getId());
+                    }
+                    Member member = new Member(id, name, contact,memberBookIds);
+                    allMembers.add(member);
                 }
-                Member member = new Member(id, name, contact,memberBookIds);
-                allMembers.add(member);
-            }
 
-        } catch (SQLException e) {
-            e.printStackTrace();
+            } catch (SQLException e) {
+                throw new AppException(error.getMembersLoadingErrorCode(),error.getMembersLoadingErrorMsg());
+            }
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
         }
 
         return allMembers;
@@ -122,20 +145,24 @@ public class GeneralServices {
         List<Book> mBooks = new ArrayList<>();
         String sql = "SELECT book_id FROM member_books WHERE member_id = ?";
 
-        try (Connection conn = DButil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);) {
-            stmt.setInt(1, memberId);
+        try{
+            try (Connection conn = DButil.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql);) {
+                stmt.setInt(1, memberId);
 
-             ResultSet rs = stmt.executeQuery();
+                ResultSet rs = stmt.executeQuery();
 
-            while (rs.next()) {
-                int id = rs.getInt("book_id");
-                Book book = getBookById(id);
-                mBooks.add(book);
+                while (rs.next()) {
+                    int id = rs.getInt("book_id");
+                    Book book = getBookById(id);
+                    mBooks.add(book);
+                }
+
+            } catch (SQLException e) {
+                throw new AppException(AppErrorCode.getMemberBooksLoadingErrorCode(), AppErrorCode.getMemberBooksLoadingErrorMsg());
             }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
         }
 
         return mBooks;
@@ -145,19 +172,24 @@ public class GeneralServices {
         String sql = "SELECT COUNT(*) FROM members WHERE id = ?";
         boolean exists = false;
 
-        try (Connection conn = DButil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try{
+            try (Connection conn = DButil.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1, memberId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    int count = rs.getInt(1);
-                    exists = (count > 0);
+                stmt.setInt(1, memberId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        int count = rs.getInt(1);
+                        exists = (count > 0);
+                    }
                 }
-            }
 
-        } catch (SQLException e) {
-            e.printStackTrace();
+            } catch (SQLException e) {
+                throw new AppException(error.getMemberNotFoundErrorCode(),error.getMemberNotFoundErrorMsg());
+
+            }
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
         }
 
         return exists;
@@ -168,26 +200,31 @@ public class GeneralServices {
         List<Transaction> allTransactions = new ArrayList<>();
         String sql = "SELECT * FROM transactions";
 
-        try (Connection conn = DButil.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+        try{
+            try (Connection conn = DButil.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql);
+                 ResultSet rs = stmt.executeQuery()) {
 
-            while (rs.next()) {
-                String transaction_id = rs.getString("transaction_id");
-                int bookId = rs.getInt("book_id");
-                int memberId = rs.getInt("member_id");
-                LocalDate transactionDate = rs.getDate("transaction_date").toLocalDate();
-                String transactionType = rs.getString("transaction_type");
+                while (rs.next()) {
+                    String transaction_id = rs.getString("transaction_id");
+                    int bookId = rs.getInt("book_id");
+                    int memberId = rs.getInt("member_id");
+                    LocalDate transactionDate = rs.getDate("transaction_date").toLocalDate();
+                    String transactionType = rs.getString("transaction_type");
 
 
 
 
-                Transaction t = new Transaction(transaction_id,memberId,bookId,transactionType,transactionDate);
-                allTransactions.add(t);
+                    Transaction t = new Transaction(transaction_id,memberId,bookId,transactionType,transactionDate);
+                    allTransactions.add(t);
+                }
+
+            } catch (SQLException e) {
+                throw new AppException(error.getTransactionsLoadingErrorCode(),error.getTransactionsLoadingErrorMsg());
+
             }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
         }
 
         return allTransactions;

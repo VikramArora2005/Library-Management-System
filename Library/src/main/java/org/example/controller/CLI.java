@@ -1,30 +1,50 @@
 package org.example.controller;
+import org.example.constants.AppErrorCode;
+import org.example.constants.AppSuccessCode;
+import org.example.exception.AppException;
 import org.example.model.Book;
 import org.example.model.Member;
-import java.util.ArrayList;
+
 import java.util.List;
 import java.util.Scanner;
 
 import org.example.model.Transaction;
 import org.example.service.StaffServices;
-import org.example.service.MemberServices;
+import org.example.service.TransactionServices;
 import org.example.service.GeneralServices;
+
 
 public class CLI {
     StaffServices staffService = new StaffServices();
-    MemberServices memberService = new MemberServices();
+    TransactionServices memberService = new TransactionServices();
     GeneralServices generalService = new GeneralServices();
+    AppErrorCode error = new AppErrorCode();
+    AppSuccessCode success = new AppSuccessCode();
     Scanner sc =  new Scanner(System.in);
+
+
+    private int getIntInput() {
+        while (true) {
+            String input = sc.nextLine();
+            if (input.matches("\\d+")) {
+                return Integer.parseInt(input);
+            }
+            System.out.print("Invalid input. Enter a number: ");
+        }
+    }
+
 
     //HOME PAGE
     public void HomePageCLI(){
+
+
+
         int choice;
         while(true){
             System.out.println("======= LIBRARY MANAGEMENT SYSTEM =======");
             System.out.println("1. STAFF");
             System.out.println("2. MEMBER");
-            choice = sc.nextInt();
-            sc.nextLine();
+            choice = getIntInput();
 
             try{
                 switch(choice){
@@ -33,7 +53,7 @@ public class CLI {
                     default -> System.out.println("Invalid choice");
                 }
             }catch(Exception e){
-                System.out.println("Error occured");
+                System.out.println("ERROR");
             }
         }
 
@@ -52,8 +72,8 @@ public class CLI {
             System.out.println("7. VIEW ALL TRANSACTIONS");
             System.out.println("8. GO BACK");
 
-            choice = sc.nextInt();
-            sc.nextLine();
+            choice = getIntInput();
+
 
             try{
                 switch(choice){
@@ -68,7 +88,7 @@ public class CLI {
                     default -> System.out.println("Invalid choice");
                 }
             }catch(Exception e){
-                System.out.println("Error occured");
+                System.out.println("ERROR OCCRED WHILE CHOOSING");
             }
         }
     }
@@ -79,15 +99,24 @@ public class CLI {
         System.out.print("Enter Author: ");
         String author = sc.nextLine();
         System.out.print("Enter Quantity: ");
-        int qty = sc.nextInt();
+        int qty = getIntInput();
         Book book = new Book(title, author, qty);
-        staffService.addBook(book);
+        try{
+            staffService.addBook(book);
+        } catch(AppException e){
+
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
+        }
         StaffCLI();
     }
     private void removeBookCLI(){
         System.out.print("Enter Book ID: ");
-        int id = sc.nextInt(); sc.nextLine();
-        staffService.removeBook(id);
+        int id = getIntInput();
+        try{
+            staffService.removeBook(id);
+        } catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
+        }
         StaffCLI();
     }
     private void newMemberCLI(){
@@ -96,13 +125,22 @@ public class CLI {
         System.out.print("Enter Contact: ");
         String contact = sc.nextLine();
         Member member = new Member(name,contact);
-        staffService.addMember(member);
+        try{
+            staffService.addMember(member);
+        } catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
+        }
+
         StaffCLI();
     }
     private void removeMemberCLI(){
         System.out.print("Enter Member ID: ");
-        int id = sc.nextInt(); sc.nextLine();
-        staffService.removeMember(id);
+        int id = getIntInput();
+        try{
+            staffService.removeMember(id);
+        } catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
+        }
         StaffCLI();
     }
 
@@ -110,19 +148,19 @@ public class CLI {
 
     private void MemberLoginCLI(){
         System.out.print("Enter your ID: ");
-        int id = sc.nextInt();
-        sc.nextLine();
-        boolean b = generalService.checkMember(id);
-        if(b){
-            MemberCLI(id);
-        }
-        else{
-        System.out.println("Invalid Member ID");
-        HomePageCLI();
+        int id = getIntInput();
+
+        boolean exists = generalService.checkMember(id);
+
+        if(!exists){
+            System.out.println("MESSAGE " + error.getMemberNotFoundErrorCode()
+                    + ": " + error.getMemberNotFoundErrorMsg());
+            return; // do NOT call HomePageCLI() inside MemberLoginCLI()
         }
 
-
+        MemberCLI(id);  // only call if exists
     }
+
 
 
 
@@ -140,8 +178,7 @@ public class CLI {
             System.out.println("4. RETURN BOOK: ");
             System.out.println("5. GO BACK");
 
-            choice = sc.nextInt();
-            sc.nextLine();
+            choice = getIntInput();
 
             try{
                 switch(choice){
@@ -153,7 +190,8 @@ public class CLI {
                     default -> System.out.println("Invalid choice");
                 }
             }catch(Exception e){
-                System.out.println("Error occured");
+                System.out.println("ERROR OCCRED WHILE CHOOSING");
+
             }
         }
 
@@ -161,36 +199,64 @@ public class CLI {
 
     private void issueBookCLI(Member m){
         System.out.print("Enter Book ID: ");
-        int book_id = sc.nextInt(); sc.nextLine();
-        Book b = generalService.getBookById(book_id);
-        memberService.transaction(m,b,"Issue");
+        int book_id = getIntInput();
+
+        try{
+            try{
+                Book b = generalService.getBookById(book_id);
+                memberService.transaction(m,b,"Issue");
+            }catch (AppException e){
+                System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
+            }catch(Exception e){
+                throw new AppException(error.getBookNotFoundErrorCode(), error.getBookNotFoundErrorMsg());
+            }
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
+        }
+
         MemberCLI(m.getId());
 
     }
     private void returnBookCLI(Member m){
         System.out.print("Enter Book ID: ");
-        int book_id = sc.nextInt(); sc.nextLine();
-        Book b = generalService.getBookById(book_id);
-        memberService.transaction(m,b,"Return");
+        int book_id = getIntInput();
+
+        try{
+            try{
+                Book b = generalService.getBookById(book_id);
+                memberService.transaction(m,b,"Return");
+            }catch (AppException e){
+                System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
+            }catch(Exception e){
+                throw new AppException(error.getBookNotFoundErrorCode(), error.getBookNotFoundErrorMsg());
+            }
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
+        }
+
         MemberCLI(m.getId());
 
     }
 
     private void allBooksCLI(Member m){
         List<Book> books =  generalService.viewAllBooks();
-        if (books.isEmpty()) {
-            System.out.println("No books found in database.");
-        } else {
-            System.out.println("📚 List of Books:");
-            for (Book b : books) {
-                System.out.println(b);
+        try{
+            if (books.isEmpty()) {
+                throw new AppException(error.getNoBooksFoundErrorCode(),error.getNoBooksFoundErrorMsg());
+            } else {
+                System.out.println("📚 List of Books:");
+                for (Book b : books) {
+                    System.out.println(b);
+                }
             }
+
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
         }
         int choice;
         while(true){
             System.out.println("PRESS 1 to GO BACK");
-            choice = sc.nextInt();
-            sc.nextLine();
+            choice = getIntInput();
 
             try{
                 switch(choice){
@@ -198,7 +264,7 @@ public class CLI {
                     default -> System.out.println("Invalid choice");
                 }
             }catch(Exception e){
-                System.out.println("Error occured");
+                System.out.println("CANNOT GO BACK");   //EXCEPTION
             }
         }
 
@@ -206,19 +272,24 @@ public class CLI {
 
     private void allBooksCLI(){
         List<Book> books =  generalService.viewAllBooks();
-        if (books.isEmpty()) {
-            System.out.println("No books found in database.");
-        } else {
-            System.out.println("📚 List of Books:");
-            for (Book b : books) {
-                System.out.println(b);
+        try{
+            if (books.isEmpty()) {
+                throw new AppException(error.getNoBooksFoundErrorCode(),error.getNoBooksFoundErrorMsg());
+            } else {
+                System.out.println("📚 List of Books:");
+                for (Book b : books) {
+                    System.out.println(b);
+                }
             }
+
+        }catch(AppException e){
+            System.out.println("MESSAGE "+e.getCode()+": "+e.getMessage());
         }
+
         int choice;
         while(true){
             System.out.println("PRESS 1 to GO BACK");
-            choice = sc.nextInt();
-            sc.nextLine();
+            choice = getIntInput();
 
             try{
                 switch(choice){
@@ -226,7 +297,7 @@ public class CLI {
                     default -> System.out.println("Invalid choice");
                 }
             }catch(Exception e){
-                System.out.println("Error occured");
+                System.out.println("CANNOT GO BACK"); //EXCEPTION
             }
         }
 
@@ -245,8 +316,7 @@ public class CLI {
         int choice;
         while(true){
             System.out.println("PRESS 1 to GO BACK");
-            choice = sc.nextInt();
-            sc.nextLine();
+            choice = getIntInput();
 
             try{
                 switch(choice){
@@ -254,7 +324,7 @@ public class CLI {
                     default -> System.out.println("Invalid choice");
                 }
             }catch(Exception e){
-                System.out.println("Error occured");
+                System.out.println("CANNOT GO BACK"); //EXCEPTION
             }
         }
     }
@@ -272,8 +342,7 @@ public class CLI {
         int choice;
         while(true){
             System.out.println("PRESS 1 to GO BACK");
-            choice = sc.nextInt();
-            sc.nextLine();
+            choice = getIntInput();
 
             try{
                 switch(choice){
@@ -281,7 +350,7 @@ public class CLI {
                     default -> System.out.println("Invalid choice");
                 }
             }catch(Exception e){
-                System.out.println("No books");
+                System.out.println("CANNOT GO BACK"); //EXCEPTION
             }
         }
 
@@ -301,8 +370,7 @@ public class CLI {
         int choice;
         while(true){
             System.out.println("PRESS 1 to GO BACK");
-            choice = sc.nextInt();
-            sc.nextLine();
+            choice = getIntInput();
 
             try{
                 switch(choice){
@@ -310,7 +378,7 @@ public class CLI {
                     default -> System.out.println("Invalid choice");
                 }
             }catch(Exception e){
-                System.out.println("Error occured");
+                System.out.println("CANNOT GO BACK"); //EXCEPTION
             }
         }
     }

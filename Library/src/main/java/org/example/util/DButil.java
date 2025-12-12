@@ -1,43 +1,48 @@
 package org.example.util;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class DButil {
-    private static final String URL = "jdbc:mysql://localhost:3306/library";
-    private static final String USER = "root";
-    private static final String PASSWORD = "root";
+
+    private static final HikariDataSource dataSource;
 
     static {
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-        } catch (ClassNotFoundException e) {
-            System.out.println("MySQL JDBC Driver not found.");
-            e.printStackTrace();
-        }
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl("jdbc:mysql://localhost:3306/library");
+        config.setUsername("root");
+        config.setPassword("root");
+
+        // Optional optimizations
+        config.setMinimumIdle(5);
+        config.setMaximumPoolSize(10);
+        config.setIdleTimeout(30000);
+        config.setConnectionTimeout(30000);
+        config.setMaxLifetime(1800000);
+        config.setLeakDetectionThreshold(5000);
+
+        dataSource = new HikariDataSource(config);
+//        System.out.println("Connected using HikariCP connection pool");
     }
 
     public static Connection getConnection() throws SQLException {
-        Connection con = null;
-        try{
-            con = DriverManager.getConnection(URL, USER, PASSWORD);
-
-        }
-        catch(SQLException e){
-            System.out.println("Connection Failed! Check output console");
-            e.printStackTrace();
-        }
-        return con;
-    }
-
-    public static void closeConnection(Connection con) {
-        if (con != null) {
-            try {
-                con.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }
+        return dataSource.getConnection(); // pooled connection
     }
 }
+
+    // Closing returns the connection to the pool, not the DB
+//    public static void closeConnection(Connection con) {
+//        if (con != null) {
+//            try {
+//                con.close(); // returns to the pool
+//            } catch (SQLException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//    }
+
+
+
